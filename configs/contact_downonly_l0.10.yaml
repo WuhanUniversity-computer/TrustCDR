@@ -1,0 +1,128 @@
+# Contact Reliability Gate - contact_downonly_l0.10
+# Only suppress low-reliability regions (conservative version)
+# Training: scratch 0 to 250k
+method_name: contact_reliability_gate
+base_method: softc_pair_correction
+training_protocol: scratch_0_to_250k
+resume: false
+checkpoint: null
+pretrained: null
+init_from_checkpoint: false
+
+total_steps: 250000
+mid_eval_step: 150000
+final_eval_step: 250000
+save_interval: 10000
+
+disable_film: true
+disable_edgebias: true
+disable_consistency: true
+disable_context_encoder: true
+disable_denoising_head: true
+
+model:
+  type: rectflow
+  res_feat_dim: 128
+  pair_feat_dim: 64
+  diffusion:
+    num_steps: 100
+    eps_net_opt:
+      num_layers: 6
+  train_structure: true
+  train_sequence: true
+  use_trust_cdr: true
+  use_pair_gate_fix: false
+  use_pair_reliability_constrained: false
+  use_pair_soft_reliability: true
+  use_two_branch_d: false
+  softc_reliability_beta: 0.10
+  ra_context_encoder_mode: none
+  ra_use_relation_gate: true
+  ra_gate_insert_attention: true
+  ra_gate_insert_pair_update: true
+  ra_gate_mode: scalar
+  ra_gate_hidden_dim: 128
+  ra_gate_dropout: 0.1
+  ra_gate_init: near_identity
+  ra_gate_use_distance: true
+  ra_gate_use_pair_feature: true
+  ra_gate_log_values: true
+  ra_gate_balance_loss_weight: 0.0
+  ra_gate_entropy_loss_weight: 0.0
+  ra_use_pair_modulation: true
+  ra_pair_modulation:
+    enabled: true
+    hidden_dim: 128
+    dropout: 0.0
+    alpha_init: 0.0
+    gate_bias_init: 0.0
+    use_pair_feature_in_gate: false
+    use_distance_feature: true
+    use_orientation_feature: true
+    pair_gate_use_reliability: true
+    pair_gate_use_geometry: true
+
+  direct_contact_gate:
+    enabled: true
+    variant: contact_downonly
+    lambda: 0.10
+    clip_value: 0.20
+    temperature: 1.0
+    eps: 1.0e-6
+    normalization: contact_aware_mean_preserving
+    reliability_source: rho
+
+  gate_mode: downonly
+
+train:
+  loss_weights:
+    seq: 1.0
+    pos: 1.0
+    qua: 1.0
+  max_iters: 200000
+  val_freq: 5000
+  batch_size: 6
+  seed: 2026
+  max_grad_norm: 100.0
+  optimizer:
+    type: adam
+    lr: 1.e-4
+    weight_decay: 0.
+    beta1: 0.9
+    beta2: 0.999
+  scheduler:
+    type: plateau
+    factor: 0.8
+    patience: 10
+    min_lr: 5.e-6
+
+checkpoint:
+  save_freq: 10000
+
+dataset:
+  train:
+    type: sabdab
+    summary_path: ./data/sabdab_summary_all.tsv
+    chothia_dir: ./data/all_structures/chothia
+    processed_dir: ./data/processed
+    split: train
+    antigen_reliability_cache_dir: ./data/antigen_reliability_cache
+    antigen_reliability_required: true
+    transform:
+    - type: mask_multiple_cdrs
+      selection: [H_CDR1, H_CDR2, H_CDR3, L_CDR1, L_CDR2, L_CDR3]
+    - type: merge_chains
+    - type: patch_around_anchor
+  val:
+    type: sabdab
+    summary_path: ./data/sabdab_summary_all.tsv
+    chothia_dir: ./data/all_structures/chothia
+    processed_dir: ./data/processed
+    split: val
+    antigen_reliability_cache_dir: ./data/antigen_reliability_cache
+    antigen_reliability_required: true
+    transform:
+    - type: mask_multiple_cdrs
+      selection: [H_CDR1, H_CDR2, H_CDR3, L_CDR1, L_CDR2, L_CDR3]
+    - type: merge_chains
+    - type: patch_around_anchor
